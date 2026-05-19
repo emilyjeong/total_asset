@@ -874,15 +874,10 @@ body {
 
 <header class="intro">
   <div class="page-title-row">
-    <h1>총자산 연수익률</h1>
+    <h1>순자산 연수익률</h1>
     <a href="https://emilyjeong.github.io/home" class="home-btn" aria-label="홈으로 가기">🏠</a>
   </div>
 </header>
-
-<div class="tabs">
-  <button class="tab-btn active" data-view="dashboard" onclick="switchTab('dashboard')">📊 대시보드</button>
-  <button class="tab-btn" data-view="input" onclick="switchTab('input')">✏️ 입력</button>
-</div>
 
 <div class="view active" id="view-dashboard">
   <div class="status-bar" id="status">
@@ -891,70 +886,6 @@ body {
   </div>
   <div id="dashboard">
     <div class="loader">자산 불러오는 중...</div>
-  </div>
-</div>
-
-<div class="view" id="view-input">
-  <div class="form-wrap">
-    <h2>월별 입력</h2>
-    <div class="form-sub">입금/원금상환은 음수, 회수/대출전환은 양수</div>
-
-    <form class="form-grid" id="input-form" onsubmit="submitInput(event)">
-      <div class="form-row">
-        <div class="form-field">
-          <label>연도</label>
-          <input type="number" name="year" id="f-year" min="2025" max="2099" required>
-        </div>
-        <div class="form-field">
-          <label>월</label>
-          <select name="month" id="f-month" required></select>
-        </div>
-      </div>
-
-      <div class="form-field">
-        <label>계좌</label>
-        <select name="account" id="f-account" required>
-          <option value="">선택</option>
-          <option value="TOSS_E">TOSS_E (주식·Em)</option>
-          <option value="TOSS_F">TOSS_F (주식·Fabio)</option>
-          <option value="MERITZ">MERITZ (주식·Em)</option>
-          <option value="KB">KB (연금)</option>
-          <option value="KB2">KB2 (퇴직 IRP)</option>
-          <option value="401K">401K (퇴직)</option>
-          <option value="BTC">BTC</option>
-          <option value="NS">NS (부동산·Em)</option>
-          <option value="SUZY">SUZY (부동산·Fabio)</option>
-        </select>
-      </div>
-
-      <div class="form-field">
-        <label>금액 <span class="hint">음수=입금, 양수=회수/대출전환</span></label>
-        <input type="number" name="amount" id="f-amount" step="1" required>
-      </div>
-
-      <div class="form-field">
-        <label>유형 <span class="hint">선택 (기본: 일반/원금상환)</span></label>
-        <select name="type" id="f-type">
-          <option value="">— (일반/원금상환)</option>
-          <option value="추가투입">추가투입 (부동산 추가 자본)</option>
-          <option value="대출전환">대출전환 (대출 갈아타기)</option>
-          <option value="회수">회수 (인출/매도)</option>
-        </select>
-      </div>
-
-      <div class="form-field">
-        <label>메모 <span class="hint">선택</span></label>
-        <input type="text" name="memo" id="f-memo" placeholder="예: 5월 적립">
-      </div>
-
-      <button type="submit" class="form-submit" id="f-submit">저장</button>
-      <div class="form-result" id="f-result"></div>
-    </form>
-
-    <div class="recent-list" id="recent-list" style="display:none;">
-      <div class="title">📋 이번 세션 입력</div>
-      <div id="recent-items"></div>
-    </div>
   </div>
 </div>
 
@@ -1215,99 +1146,6 @@ function renderREtotal(properties) {
   });
   sec.appendChild(grid);
   return sec;
-}
-
-function switchTab(view) {
-  document.querySelectorAll('.tab-btn').forEach(b => b.classList.toggle('active', b.dataset.view === view));
-  document.querySelectorAll('.view').forEach(v => v.classList.toggle('active', v.id === 'view-' + view));
-  if (view === 'input') initInputForm();
-}
-
-function initInputForm() {
-  const now = new Date();
-  const yearField = document.getElementById('f-year');
-  const monthField = document.getElementById('f-month');
-  if (!yearField.value) yearField.value = now.getFullYear();
-  if (monthField.options.length === 0) {
-    for (let m = 1; m <= 12; m++) {
-      const opt = document.createElement('option');
-      opt.value = m; opt.textContent = m + '월';
-      if (m === now.getMonth() + 1) opt.selected = true;
-      monthField.appendChild(opt);
-    }
-  }
-}
-
-const sessionInputs = [];
-
-async function submitInput(e) {
-  e.preventDefault();
-  const form = document.getElementById('input-form');
-  const submitBtn = document.getElementById('f-submit');
-  const resultEl = document.getElementById('f-result');
-
-  const data = {
-    year: document.getElementById('f-year').value,
-    month: document.getElementById('f-month').value,
-    account: document.getElementById('f-account').value,
-    amount: document.getElementById('f-amount').value,
-    type: document.getElementById('f-type').value,
-    memo: document.getElementById('f-memo').value,
-  };
-
-  if (!data.year || !data.month || !data.account || !data.amount) {
-    showFormResult('error', '연도/월/계좌/금액은 필수');
-    return;
-  }
-
-  submitBtn.disabled = true;
-  submitBtn.textContent = '저장 중...';
-  resultEl.classList.remove('show');
-
-  const formData = new FormData();
-  formData.append('action', 'addInput');
-  Object.keys(data).forEach(k => formData.append(k, data[k]));
-
-  try {
-    const res = await fetch(window.GAS_URL, { method: 'POST', body: formData });
-    const json = await res.json();
-    if (json.success) {
-      showFormResult('success', `✓ 저장됨 (행 ${json.row})`);
-      sessionInputs.unshift({ ...data, time: new Date() });
-      renderRecentList();
-      document.getElementById('f-amount').value = '';
-      document.getElementById('f-memo').value = '';
-      load();
-    } else {
-      showFormResult('error', '실패: ' + (json.error || 'unknown'));
-    }
-  } catch (err) {
-    showFormResult('error', '오류: ' + (err.message || err));
-  } finally {
-    submitBtn.disabled = false;
-    submitBtn.textContent = '저장';
-  }
-}
-
-function showFormResult(type, msg) {
-  const el = document.getElementById('f-result');
-  el.className = 'form-result show ' + type;
-  el.textContent = msg;
-}
-
-function renderRecentList() {
-  if (sessionInputs.length === 0) return;
-  document.getElementById('recent-list').style.display = 'block';
-  const wrap = document.getElementById('recent-items');
-  wrap.innerHTML = sessionInputs.slice(0, 10).map(it => {
-    const amt = Number(it.amount);
-    const cls = amt >= 0 ? 'pos' : 'neg';
-    const typeTag = it.type ? ` <span style="color:var(--ink-dim);">[${it.type}]</span>` : '';
-    return `<div class="recent-item">
-      <span class="info"><b>${it.year}.${it.month}</b>${it.account}${typeTag}</span>
-      <span class="amt ${cls}">${amt.toLocaleString('ko-KR')}</span>
-    </div>`;
-  }).join('');
 }
 
 function showError(msg) {
